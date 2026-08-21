@@ -91,7 +91,11 @@ export function AuditChat() {
         }}
         className="sticky bottom-0 flex gap-2 border-t border-[#262B36] bg-[#0B0E14] px-4 py-3 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]"
       >
+        <label htmlFor="audit-url-input" className="sr-only">
+          URL to audit
+        </label>
         <input
+          id="audit-url-input"
           ref={inputRef}
           name="prompt"
           placeholder="Paste a URL to audit…"

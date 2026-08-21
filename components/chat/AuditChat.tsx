@@ -94,16 +94,19 @@ export function AuditChat() {
         }}
         className="sticky bottom-0 flex gap-2 border-t border-[#262B36] bg-[#0B0E14] px-4 py-3 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]"
       >
+        <label htmlFor="audit-url-input" className="sr-only">
+          URL to audit
+        </label>
         <input
+          id="audit-url-input"
           ref={inputRef}
           name="prompt"
           placeholder="Paste a URL to audit…"
           enterKeyHint="send"
-          onFocus={(e) =>
-            setTimeout(
-              () => e.currentTarget.scrollIntoView({ block: 'center', behavior: 'smooth' }),
-              300
-            )
+          onFocus={() =>
+            setTimeout(() => {
+              inputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }, 300)
           }
           style={{ fontSize: '16px' }}
           className="min-w-0 flex-1 rounded-md border border-[#262B36] bg-[#12151C] px-3 py-2 font-mono text-[#E7E9EE] outline-none focus:border-[#7C9CFF]"

@@ -16,7 +16,10 @@ export function MetaTagsFindingsCard({ result }: { result: Partial<FetchMetaTags
   // a designed notice here instead of crashing the message list.
   if (!findings || score === null) {
     return (
-      <div className="mt-2 rounded-md border border-[#E8B44D]/40 bg-[#E8B44D]/10 px-3 py-2 text-sm text-[#E8B44D]">
+      <div
+        role="status"
+        className="mt-2 rounded-md border border-[#E8B44D]/40 bg-[#E8B44D]/10 px-3 py-2 text-sm text-[#E8B44D]"
+      >
         Got a result back, but it wasn't in the expected shape — nothing to show.
       </div>
     );
@@ -32,6 +35,7 @@ export function MetaTagsFindingsCard({ result }: { result: Partial<FetchMetaTags
         <span
           className="ml-3 shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
           style={{ color: scoreColor, backgroundColor: `${scoreColor}1A` }}
+          aria-label={`Score ${score} out of 100`}
         >
           {score}/100
         </span>

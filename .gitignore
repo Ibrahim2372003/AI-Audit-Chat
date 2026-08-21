@@ -8,3 +8,6 @@ build/
 *.pem
 npm-debug.log*
 .vercel
+*.tsbuildinfo
+test-results/
+playwright-report/

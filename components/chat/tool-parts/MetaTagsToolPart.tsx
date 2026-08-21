@@ -31,14 +31,20 @@ export function MetaTagsToolPart({ part }: { part: any }) {
 function Shell({
   dot,
   label,
+  role = 'status',
   children,
 }: {
   dot: ReactNode;
   label: string;
+  role?: 'status' | 'alert';
   children?: ReactNode;
 }) {
   return (
-    <div className="my-2 animate-[fadeIn_200ms_ease-out] rounded-lg border border-[#262B36] bg-[#12151C] px-4 py-3">
+    <div
+      role={role}
+      aria-label={label}
+      className="my-2 animate-[fadeIn_200ms_ease-out] rounded-lg border border-[#262B36] bg-[#12151C] px-4 py-3"
+    >
       <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[#8891A3]">
         {dot}
         {label}
@@ -106,6 +112,7 @@ function ErrorState({ part }: { part: any }) {
     <Shell
       dot={<span className="h-2 w-2 rounded-full bg-[#F0665A]" />}
       label="Fetch failed"
+      role="alert"
     >
       <div className="mt-2 rounded-md border border-[#F0665A]/40 bg-[#F0665A]/10 px-3 py-2">
         <p className="font-mono text-sm text-[#F0665A]">

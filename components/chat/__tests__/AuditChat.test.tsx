@@ -21,6 +21,7 @@ function mockUseChat(overrides: Partial<ReturnType<typeof useChat>>) {
     status: 'ready',
     error: undefined,
     regenerate: vi.fn(),
+    stop: vi.fn(),
     ...overrides,
   });
 }
@@ -71,6 +72,27 @@ describe('AuditChat', () => {
     });
     render(<AuditChat />);
     expect(screen.getAllByText('https://example.com').length).toBeGreaterThan(0);
+  });
+
+  it('streaming: the Stop button is keyboard-reachable and calls stop()', async () => {
+    const stop = vi.fn();
+    mockUseChat({
+      messages: [{ id: '1', role: 'user', parts: [{ type: 'text', text: 'https://example.com' }] }],
+      status: 'streaming',
+      stop,
+    });
+    const user = userEvent.setup();
+    render(<AuditChat />);
+
+    // Tab from the top of the document to the Stop button — proves it's
+    // actually in the natural tab order, not just clickable with a mouse.
+    await user.tab(); // -> input (the sr-only label isn't itself a tab stop)
+    await user.tab(); // -> Stop
+    const stopButton = screen.getByRole('button', { name: /stop/i });
+    expect(stopButton).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+    expect(stop).toHaveBeenCalledTimes(1);
   });
 
   it('error: shows the banner and wires the retry button to regenerate()', async () => {

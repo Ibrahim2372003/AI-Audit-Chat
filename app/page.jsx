@@ -11,7 +11,7 @@ import { MetaTagsToolPart } from '../components/chat/tool-parts/MetaTagsToolPart
 import { ConfirmRescanPart } from '../components/chat/tool-parts/ConfirmRescanPart';
 
 export function AuditChat() {
-  const { messages, sendMessage, addToolResult, status, error, regenerate } = useChat({
+  const { messages, sendMessage, addToolResult, status, error, regenerate, stop } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/audit-chat',
     }),
@@ -31,9 +31,12 @@ export function AuditChat() {
 
   const isEmpty = messages.length === 0;
   const showSkeleton = status === 'submitted' && messages.at(-1)?.role === 'user';
+  const isBusy = status === 'streaming' || status === 'submitted';
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-[#0B0E14] [overscroll-behavior-y:contain]">
+    <main className="flex h-[100dvh] flex-col bg-[#0B0E14] [overscroll-behavior-y:contain]">
+      <h1 className="sr-only text-[#E7E9EE]">SEO audit chat</h1>
+
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
         {isEmpty && !showSkeleton && <EmptyState />}
 
@@ -42,7 +45,11 @@ export function AuditChat() {
             {message.parts.map((part, i) => {
               if (part.type === 'text') {
                 return (
-                  <p key={i} className="text-sm leading-relaxed text-[#E7E9EE]">
+                  <p
+                    key={i}
+                    aria-live={message.role === 'assistant' ? 'polite' : undefined}
+                    className="text-sm leading-relaxed text-[#E7E9EE]"
+                  >
                     {part.text}
                   </p>
                 );
@@ -107,17 +114,26 @@ export function AuditChat() {
             )
           }
           style={{ fontSize: '16px' }}
-          className="min-w-0 flex-1 rounded-md border border-[#262B36] bg-[#12151C] px-3 py-2 font-mono text-[#E7E9EE] outline-none focus:border-[#7C9CFF]"
+          className="min-w-0 flex-1 rounded-md border border-[#262B36] bg-[#12151C] px-3 py-2 font-mono text-[#E7E9EE] outline-none focus-visible:border-[#7C9CFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C9CFF]"
         />
-        <button
-          type="submit"
-          disabled={status === 'streaming' || status === 'submitted'}
-          className="shrink-0 rounded-md bg-[#7C9CFF] px-4 py-2 text-sm font-semibold text-[#12151C] disabled:opacity-50"
-        >
-          {status === 'streaming' ? 'Sending…' : 'Send'}
-        </button>
+        {isBusy ? (
+          <button
+            type="button"
+            onClick={() => stop()}
+            className="shrink-0 rounded-md border border-[#262B36] bg-[#12151C] px-4 py-2 text-sm font-semibold text-[#E7E9EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C9CFF]"
+          >
+            Stop
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="shrink-0 rounded-md bg-[#7C9CFF] px-4 py-2 text-sm font-semibold text-[#12151C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C9CFF]"
+          >
+            Send
+          </button>
+        )}
       </form>
-    </div>
+    </main>
   );
 }
 

@@ -20,7 +20,10 @@ export function ChatErrorBanner({
   const message = classify(error);
 
   return (
-    <div className="my-2 flex items-center justify-between gap-3 rounded-lg border border-[#F0665A]/40 bg-[#F0665A]/10 px-4 py-3 transition-opacity duration-200">
+    <div
+      role="alert"
+      className="my-2 flex items-center justify-between gap-3 rounded-lg border border-[#F0665A]/40 bg-[#F0665A]/10 px-4 py-3 transition-opacity duration-200"
+    >
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 shrink-0 rounded-full bg-[#F0665A]" />
         <p className="text-sm text-[#E7E9EE]">{message}</p>

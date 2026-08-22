@@ -30,7 +30,7 @@ export default function Error({
         <span className="text-2xl text-[#F0665A]">!</span>
       </div>
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold text-[#E7E9EE]">This page hit a snag</h2>
+        <h1 className="text-lg font-semibold text-[#E7E9EE]">This page hit a snag</h1>
         <p className="max-w-sm text-sm text-[#8891A3]">
           Something broke loading the audit tool itself — not a specific scan.
           Reloading usually clears it.

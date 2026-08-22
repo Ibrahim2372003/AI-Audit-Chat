@@ -1,13 +1,36 @@
-node_modules
-.next/
-out/
-build/
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache
+
+# next.js build output
+/.next/
+/out/
+
+# production
+/build
+
+# vercel
+/.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# env files — never commit secrets or local overrides
 .env
 .env*.local
+
+# misc
 .DS_Store
 *.pem
 npm-debug.log*
-.vercel
-*.tsbuildinfo
-test-results/
-playwright-report/
+yarn-debug.log*
+yarn-error.log*

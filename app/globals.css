@@ -21,10 +21,10 @@
 
 @layer base {
   body {
-    @apply bg-canvas text-ink font-sans antialiased;
+    @apply bg-[#0B0E14] text-[#E7E9EE] font-sans antialiased;
   }
   :focus-visible {
-    outline: 2px solid theme("colors.accent.DEFAULT");
+    outline: 2px solid #7c9cff;
     outline-offset: 2px;
   }
 }

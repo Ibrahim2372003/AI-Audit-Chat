@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { anthropic } from '@ai-sdk/anthropic';
 import { fetchMetaTags } from '@/lib/ai/tools/fetch-meta-tags';
 import { confirmRescan } from '@/lib/ai/tools/confirm-rescan';
+import { rateLimit, getClientKey } from '@/lib/security/rate-limit';
+import { validateMessages } from '@/lib/security/validate-input';
 
 // Same schema, deliberately broken output — for testing that the UI
 // doesn't crash when a tool "succeeds" but hands back an unusable shape.
@@ -12,6 +14,12 @@ const fetchMetaTagsMalformed = tool({
   execute: async ({ url }) => ({ url, tags: null, findings: undefined }) as any,
 });
 
+// 30s: generous enough for a real audit turn (fetch + tool call + a full
+// streamed response) without leaving a hung request billing serverless
+// time indefinitely if something upstream stalls. Vercel's Hobby tier
+// caps functions at 60s regardless — this stays comfortably under that
+// even on the free tier, and Pro/Enterprise can raise it if a specific
+// slow-loading page needs more headroom.
 export const maxDuration = 30;
 
 /**
@@ -29,7 +37,33 @@ function sabotageMode(req: Request): string | null {
 }
 
 export async function POST(req: Request) {
+  // Rate limit first — the cheapest possible rejection, before we even
+  // parse the request body.
+  const clientKey = getClientKey(req);
+  const limit = rateLimit(clientKey);
+  if (!limit.ok) {
+    return new Response(
+      JSON.stringify({ error: 'Rate limit exceeded. Try again shortly.' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(limit.retryAfterSeconds),
+        },
+      }
+    );
+  }
+
   const { messages }: { messages: UIMessage[] } = await req.json();
+
+  const validation = validateMessages(messages);
+  if (!validation.ok) {
+    return new Response(JSON.stringify({ error: validation.reason }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const sabotage = sabotageMode(req);
 
   if (sabotage === '429') {

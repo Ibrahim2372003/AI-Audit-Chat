@@ -8,6 +8,22 @@ import type { AxeResults } from 'axe-core';
 // concern, not a production code change.
 Element.prototype.scrollIntoView = vi.fn();
 
+// jsdom doesn't implement matchMedia either. ShaderHero checks
+// prefers-reduced-motion; default to "no preference" (matches: false)
+// unless a test explicitly overrides it with its own mock.
+window.matchMedia =
+  window.matchMedia ||
+  vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+
 // A small, self-written matcher against axe-core's real result shape,
 // rather than the `vitest-axe` wrapper package: that package's own
 // `extend-expect` entry point ships as an empty file (verified: 0 lines

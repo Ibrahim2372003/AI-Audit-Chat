@@ -170,6 +170,45 @@ export function classifyAiError(error: unknown): AiErrorCode {
   return 'provider_failed';
 }
 
+// ---- website-fetch errors (NOT provider errors) ----------------------------------
+
+/**
+ * Detects a SiteFetchError (lib/security/site-fetch-error.ts) by its brand
+ * property, walking the `cause` chain. Duck-typed on purpose: this file is
+ * client-safe and must not import the server-only fetch module, and
+ * detection should survive an SDK wrapping the thrown error.
+ */
+export function findSiteFetchError(
+  error: unknown,
+): { code: string; message: string; detail: string | undefined } | null {
+  for (const item of chainOf(error)) {
+    const branded = item as ErrorLike & { siteFetchCode?: unknown; detail?: unknown };
+    if (typeof branded.siteFetchCode === 'string' && typeof branded.message === 'string') {
+      return {
+        code: branded.siteFetchCode,
+        message: branded.message,
+        detail: typeof branded.detail === 'string' ? branded.detail : undefined,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * The text forwarded to the browser for ANY error the UI-message stream hands
+ * us, including tool errors (the AI SDK routes tool failures through the same
+ * onError as stream failures).
+ *  - website-fetch failure -> its own user-safe message, shown in the tool card;
+ *  - everything else       -> a fixed `ai_error:<code>` token (provider failure).
+ * Without this split, a target site answering 429/503 would be reported as
+ * "the AI provider is rate limited / unavailable".
+ */
+export function toClientErrorText(error: unknown): string {
+  const site = findSiteFetchError(error);
+  if (site) return site.message;
+  return toClientError(classifyAiError(error));
+}
+
 // ---- safe logging ------------------------------------------------------------
 
 /**

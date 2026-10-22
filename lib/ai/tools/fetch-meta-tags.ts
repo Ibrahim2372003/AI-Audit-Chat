@@ -1,5 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { safeFetchHtml } from '../../security/safe-fetch';
+import { findSiteFetchError } from '../errors';
 
 /**
  * fetchMetaTags
@@ -22,35 +24,63 @@ export const fetchMetaTags = tool({
       .url()
       .describe('Full URL including protocol, e.g. https://example.com'),
   }),
-  execute: async ({ url }) => {
-    const res = await fetch(url, {
-      redirect: 'follow',
-      headers: { 'User-Agent': 'FlyRank-Audit-Bot/1.0 (+https://flyrank.ai)' },
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
-    }
-
-    const contentType = res.headers.get('content-type') ?? '';
-    if (!contentType.includes('text/html')) {
-      throw new Error(`Expected HTML, got content-type "${contentType || 'unknown'}"`);
-    }
-
-    const html = await res.text();
-    const tags = extractMetaTags(html);
-    const { score, findings } = scoreTags(tags);
-
-    return {
-      url,
-      fetchedAt: new Date().toISOString(),
-      tags,
-      score,
-      findings,
-    };
-  },
+  execute: ({ url }) => runFetchMetaTags(url),
 });
+
+type RunDeps = {
+  fetchHtml?: typeof safeFetchHtml;
+  log?: (message: string, fields: Record<string, unknown>) => void;
+};
+
+/**
+ * The tool body, exported so it can be tested with an injected fetcher.
+ *
+ * All network access goes through safeFetchHtml (SSRF-guarded, bounded). A
+ * website failure is rethrown as the typed SiteFetchError it already is: the
+ * AI SDK turns that into the tool's `output-error` state, and the route's
+ * onError recognises it (lib/ai/errors.ts) and forwards its user-safe message
+ * instead of an AI-provider error code. Failures are never swallowed and a
+ * failed fetch never produces a score.
+ */
+export async function runFetchMetaTags(url: string, deps: RunDeps = {}) {
+  const fetchHtml = deps.fetchHtml ?? safeFetchHtml;
+  const log = deps.log ?? ((message, fields) => console.warn(message, fields));
+
+  let html: string;
+  try {
+    ({ html } = await fetchHtml(url));
+  } catch (error) {
+    const site = findSiteFetchError(error);
+    if (site) {
+      // Server log only: host (not the full URL/query), code, and diagnostic detail.
+      log('[fetchMetaTags] site fetch failed', {
+        code: site.code,
+        host: hostOf(url),
+        detail: site.detail,
+      });
+    }
+    throw error;
+  }
+
+  const tags = extractMetaTags(html);
+  const { score, findings } = scoreTags(tags);
+
+  return {
+    url,
+    fetchedAt: new Date().toISOString(),
+    tags,
+    score,
+    findings,
+  };
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return 'invalid-url';
+  }
+}
 
 // ---- extraction & scoring -------------------------------------------------
 

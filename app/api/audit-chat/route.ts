@@ -5,7 +5,13 @@ import { confirmRescan } from '@/lib/ai/tools/confirm-rescan';
 import { rateLimit, getClientKey } from '@/lib/security/rate-limit';
 import { validateMessages } from '@/lib/security/validate-input';
 import { resolveModel, MAX_OUTPUT_TOKENS } from '@/lib/ai/model';
-import { classifyAiError, describeAiError, toClientError } from '@/lib/ai/errors';
+import {
+  classifyAiError,
+  describeAiError,
+  findSiteFetchError,
+  toClientError,
+  toClientErrorText,
+} from '@/lib/ai/errors';
 
 // Same schema, deliberately broken output — for testing that the UI
 // doesn't crash when a tool "succeeds" but hands back an unusable shape.
@@ -115,6 +121,9 @@ export async function POST(req: Request) {
           }
         : undefined,
     onError: ({ error }) => {
+      // A target-website failure is not an AI-provider failure; the tool logs
+      // it itself, so don't mislabel it here.
+      if (findSiteFetchError(error)) return;
       // Redacted summary only: no request bodies, headers, keys, or raw error
       // object (provider errors can carry the prompt and response headers).
       console.error('[audit-chat] AI request failed:', {
@@ -127,10 +136,11 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse({
-    // Forwarded to the client's useChat `error` object. Only a fixed
-    // `ai_error:<code>` token leaves the server: never the provider's raw
-    // message, stack trace, or anything key-shaped. ChatErrorBanner maps the
-    // code to user-facing copy.
-    onError: (error) => toClientError(classifyAiError(error)),
+    // Forwarded to the client. Tool failures arrive here too (they become the
+    // tool card's errorText), so website-fetch errors are told apart from
+    // provider errors: a fetch failure sends its own user-safe message; any
+    // other error sends only a fixed `ai_error:<code>` token, never a raw
+    // provider message, stack trace, or anything key-shaped.
+    onError: (error) => toClientErrorText(error),
   });
 }

@@ -112,7 +112,8 @@ lib/
   ai/model.ts                  provider/model selection (server-side env)
   ai/errors.ts                 provider-error classification + safe client codes
   ai/tools/                    fetchMetaTags, confirmRescan tool definitions
-  security/                    rate-limit.ts, validate-input.ts (this round)
+  security/                    rate-limit.ts, validate-input.ts, ssrf.ts (destination policy),
+                               safe-fetch.ts (guarded fetch), site-fetch-error.ts (typed errors)
 tests, .github/workflows/test.yml
 ```
 
@@ -200,16 +201,29 @@ instances, not a generic "AI helped write code" claim:
 
 ## Known gaps — stated plainly, not smoothed over
 
-- **Not production-safe yet: `fetchMetaTags` has no SSRF protection.** It
-  fetches whatever URL the model passes, follows redirects, and applies no
-  scheme/host/private-IP checks or response-size cap
-  (`lib/ai/tools/fetch-meta-tags.ts`). This is the highest-priority
-  follow-up and is intentionally not addressed by the AI-provider work.
-  Don't expose a deployment to untrusted users until it is fixed. The
-  in-memory rate limit is also per-instance only (see above).
-- **The Gemini integration has not been verified against a real request
-  by the author of this change** (no network or API key where it was
-  written). Confirm it locally with the checklist in the PR/hand-off notes.
+- **SSRF protection for `fetchMetaTags` is implemented but not a guarantee,
+  and the app should not be called production-safe.** Fetches go through
+  `lib/security/safe-fetch.ts`: http/https only, ports 80/443 only, no
+  credentials in URLs, private/loopback/link-local/CGNAT/multicast/reserved
+  IPv4 and IPv6 ranges blocked (including IPv4-mapped/NAT64/6to4 forms),
+  and the destination address is validated **at connect time** (so a DNS
+  answer that changes between check and connection cannot bypass it).
+  Redirects are followed manually (max 5) and each hop is re-validated.
+  There is an 8 s total deadline, a 2 MiB decoded-body cap (bodies are
+  truncated, not rejected, because the tags we parse are near the top), and
+  the existing 2xx and `text/html` checks. Website failures use a typed
+  `SiteFetchError` and are kept separate from AI-provider errors. Limits
+  that remain: no outbound allow-list or egress proxy, so protection relies
+  on this application-level check; only the standard ports are allowed (so
+  sites on other ports can't be audited); IP-range lists are maintained by
+  hand and need review as standards change; the in-memory rate limit is
+  per-instance only (see above) and the endpoint has no authentication;
+  the guard has been exercised by local-socket tests, not against a real
+  hostile DNS server. Treat it as defence in depth, and review before
+  exposing a deployment to untrusted users.
+- **Gemini integration:** reported working in the developer's local manual
+  tests (several sites and an invalid URL). It has not been verified in a
+  deployed environment.
 
 - **No live production URL yet.** Deploying this needs a Vercel account
   (or equivalent) connected to the repo, the provider variables above

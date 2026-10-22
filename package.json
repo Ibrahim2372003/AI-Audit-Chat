@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.38",
+    "@ai-sdk/google": "4.0.42",
     "@ai-sdk/react": "^4.0.67",
     "ai": "^7.0.64",
     "next": "latest",

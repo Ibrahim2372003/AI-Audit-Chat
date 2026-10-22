@@ -1,10 +1,11 @@
 import { streamText, convertToModelMessages, tool, type UIMessage } from 'ai';
 import { z } from 'zod';
-import { anthropic } from '@ai-sdk/anthropic';
 import { fetchMetaTags } from '@/lib/ai/tools/fetch-meta-tags';
 import { confirmRescan } from '@/lib/ai/tools/confirm-rescan';
 import { rateLimit, getClientKey } from '@/lib/security/rate-limit';
 import { validateMessages } from '@/lib/security/validate-input';
+import { resolveModel, MAX_OUTPUT_TOKENS } from '@/lib/ai/model';
+import { classifyAiError, describeAiError, toClientError } from '@/lib/ai/errors';
 
 // Same schema, deliberately broken output — for testing that the UI
 // doesn't crash when a tool "succeeds" but hands back an unusable shape.
@@ -73,8 +74,24 @@ export async function POST(req: Request) {
     });
   }
 
+  // Provider/model come from server-side env (see lib/ai/model.ts). Checked
+  // up front so a missing key/model gives a clear, designed error instead of
+  // an opaque failure from inside the provider SDK. `detail` names the
+  // variable only, never a value.
+  const resolved = resolveModel();
+  if (resolved.status === 'misconfigured') {
+    console.error(`[audit-chat] AI configuration error: ${resolved.detail}`);
+    return new Response(JSON.stringify({ error: toClientError('config_missing') }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const result = streamText({
-    model: anthropic('claude-sonnet-4-6'),
+    model: resolved.model,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    // Cancels the upstream provider call when the client disconnects or hits Stop.
+    abortSignal: req.signal,
     system:
       'You are the FlyRank audit assistant. When the user gives a URL, call fetchMetaTags ' +
       'on it before commenting. The UI already renders the raw findings as a table, so your ' +
@@ -98,17 +115,22 @@ export async function POST(req: Request) {
           }
         : undefined,
     onError: ({ error }) => {
-      console.error(
-        '[audit-chat] stream error:',
-        error instanceof Error ? error.message : String(error),
-      );
+      // Redacted summary only: no request bodies, headers, keys, or raw error
+      // object (provider errors can carry the prompt and response headers).
+      console.error('[audit-chat] AI request failed:', {
+        provider: resolved.provider,
+        model: resolved.modelId,
+        code: classifyAiError(error),
+        ...describeAiError(error),
+      });
     },
   });
 
   return result.toUIMessageStreamResponse({
-    onError: (error) =>
-      // Message forwarded to the client's useChat `error` object — keep it
-      // short and free of stack traces, the UI decides how to phrase it.
-      error instanceof Error ? error.message : 'Something went wrong.',
+    // Forwarded to the client's useChat `error` object. Only a fixed
+    // `ai_error:<code>` token leaves the server: never the provider's raw
+    // message, stack trace, or anything key-shaped. ChatErrorBanner maps the
+    // code to user-facing copy.
+    onError: (error) => toClientError(classifyAiError(error)),
   });
 }

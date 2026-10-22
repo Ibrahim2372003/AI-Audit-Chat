@@ -40,14 +40,41 @@ table), and the error/retry state.
 git clone <your-repo-url>
 cd audit-chat
 npm install
-cp .env.example .env.local   # then fill in ANTHROPIC_API_KEY
+cp .env.example .env.local   # then fill in GOOGLE_GENERATIVE_AI_API_KEY and GEMINI_MODEL
 npm run dev                  # http://localhost:3000
 ```
+
+### AI provider setup (Gemini, no paid credits required for development)
+
+The default provider is Google Gemini, called server-side through
+`@ai-sdk/google` (see `lib/ai/model.ts`). The key never reaches the browser.
+
+1. Create an API key in [Google AI Studio](https://aistudio.google.com/apikey).
+2. In `.env.local`, set `GOOGLE_GENERATIVE_AI_API_KEY` to that key.
+3. Set `GEMINI_MODEL` to a model ID **shown in your own AI Studio model
+   list** that has free-tier quota on your account. `.env.example` ships
+   `gemini-3.5-flash-lite` as a starting point taken from Google's public
+   pricing page; that is not a guarantee it is available to you.
+4. Restart `npm run dev` (Next.js only reads `.env.local` at startup).
+
+**Free-tier quotas and model availability change, and they vary by account
+and country.** Check your actual access and limits in AI Studio rather than
+relying on this README. Google's free tier is subject to per-minute and
+per-day limits, and free-tier content may be used to improve Google's
+products, so don't send sensitive pages while testing on it.
+
+To use Anthropic instead (requires prepaid API credits), set
+`AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`.
+
+If the key or model is missing, quota is exhausted, or the provider rejects
+the request, the chat shows a designed error banner. The server logs a
+redacted one-line summary (provider, model, error class, HTTP status) and
+never logs keys, headers, or request bodies.
 
 ### Tests
 
 ```bash
-npm test            # Vitest + React Testing Library — 31 tests, 8 files
+npm test            # Vitest + React Testing Library
 npx tsc --noEmit     # TypeScript, strict-enough project config
 npm run build        # production build (Next.js/Turbopack)
 npm run test:e2e     # Playwright — see "Known gaps" below
@@ -57,11 +84,16 @@ npm run test:e2e     # Playwright — see "Known gaps" below
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Yes | Calls Claude via `@ai-sdk/anthropic`. Without it, `/api/audit-chat` returns an auth error (the UI shows this as a designed error banner, not a crash). |
+| `AI_PROVIDER` | No | `google` (default) or `anthropic`. |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Yes, for `google` | Gemini API key from Google AI Studio. Server-side only. |
+| `GEMINI_MODEL` | Yes, for `google` | Gemini model ID. No built-in default on purpose: use one confirmed in your AI Studio account. |
+| `ANTHROPIC_API_KEY` | Yes, for `anthropic` | Calls Claude via `@ai-sdk/anthropic`. Requires prepaid credits. |
+| `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-4-6`. |
 | `NODE_ENV` | No — set automatically | Next.js sets this itself (`development`/`production`). The route checks it to disable the `?sabotage=` manual-QA switch outside development. |
 
-No other environment variables are read anywhere in the codebase — this
-table is exhaustive, not abbreviated.
+With a missing key or model, `/api/audit-chat` returns a 503 and the UI
+shows a designed error banner, not a crash. `.env.example` lists these
+variables with placeholders only.
 
 ## Architecture overview
 
@@ -77,13 +109,15 @@ components/
   hero/ShaderHero.tsx          raw WebGL fragment shader hero
   ChatErrorBanner.tsx, AuditSkeleton.tsx, forms/UrlInputForm.tsx
 lib/
+  ai/model.ts                  provider/model selection (server-side env)
+  ai/errors.ts                 provider-error classification + safe client codes
   ai/tools/                    fetchMetaTags, confirmRescan tool definitions
   security/                    rate-limit.ts, validate-input.ts (this round)
 tests, .github/workflows/test.yml
 ```
 
 **Stack**: Next.js (App Router) + the Vercel AI SDK (`ai`, `@ai-sdk/react`,
-`@ai-sdk/anthropic`) for streaming tool-calling chat, Tailwind for
+`@ai-sdk/google`, `@ai-sdk/anthropic`) for streaming tool-calling chat, Tailwind for
 styling, Vitest + React Testing Library + axe-core for tests, Playwright
 for the one e2e spec, raw WebGL (no Three.js) for the hero.
 
@@ -166,9 +200,21 @@ instances, not a generic "AI helped write code" claim:
 
 ## Known gaps — stated plainly, not smoothed over
 
+- **Not production-safe yet: `fetchMetaTags` has no SSRF protection.** It
+  fetches whatever URL the model passes, follows redirects, and applies no
+  scheme/host/private-IP checks or response-size cap
+  (`lib/ai/tools/fetch-meta-tags.ts`). This is the highest-priority
+  follow-up and is intentionally not addressed by the AI-provider work.
+  Don't expose a deployment to untrusted users until it is fixed. The
+  in-memory rate limit is also per-instance only (see above).
+- **The Gemini integration has not been verified against a real request
+  by the author of this change** (no network or API key where it was
+  written). Confirm it locally with the checklist in the PR/hand-off notes.
+
 - **No live production URL yet.** Deploying this needs a Vercel account
-  (or equivalent) connected to the repo, `ANTHROPIC_API_KEY` set as a
-  production environment variable, and a deploy triggered — none of which
+  (or equivalent) connected to the repo, the provider variables above
+  (`GOOGLE_GENERATIVE_AI_API_KEY` and `GEMINI_MODEL`) set as production
+  environment variables, and a deploy triggered — none of which
   is possible from the sandboxed environment this was built in (no
   internet access beyond a fixed package-registry allowlist, no way to
   authenticate to Vercel). See "Deploying this" below for the exact steps.
@@ -196,7 +242,8 @@ instances, not a generic "AI helped write code" claim:
 2. [Import the repo into Vercel](https://vercel.com/docs/deployments) —
    framework preset auto-detects as Next.js, no config needed.
 3. In Vercel's project settings → Environment Variables, add
-   `ANTHROPIC_API_KEY` for the Production environment (and Preview, if you
+   `GOOGLE_GENERATIVE_AI_API_KEY` and `GEMINI_MODEL` (or the Anthropic
+   equivalents) for the Production environment (and Preview, if you
    want preview deployments to work too).
 4. Deploy. Vercel builds with `npm run build` automatically.
 5. Cross-browser pass: open the deployed URL in actual Chrome, Firefox,

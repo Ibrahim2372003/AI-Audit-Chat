@@ -19,6 +19,18 @@ describe('ChatErrorBanner', () => {
     expect(screen.getByText(/lost the connection/i)).toBeInTheDocument();
   });
 
+  it('shows provider-specific copy for a coded provider error', () => {
+    render(<ChatErrorBanner error={new Error('ai_error:quota_or_rate_limit')} onRetry={vi.fn()} />);
+    expect(screen.getByText(/free-tier quota was reached/i)).toBeInTheDocument();
+  });
+
+  it('shows a configuration message when the server reports missing config', () => {
+    render(
+      <ChatErrorBanner error={new Error('{"error":"ai_error:config_missing"}')} onRetry={vi.fn()} />,
+    );
+    expect(screen.getByText(/isn't configured/i)).toBeInTheDocument();
+  });
+
   it('disables the retry button immediately after the first click, so a double click cannot fire twice', async () => {
     const user = userEvent.setup();
     const onRetry = vi.fn();

@@ -5,7 +5,8 @@
 | Case | Where it's handled |
 |---|---|
 | Network failure before send | `useChat`'s `error` -> `ChatErrorBanner`, "Retry last message" |
-| API error mid-stream | `onChunk` sabotage hook throws mid-text -> same banner, message classified as a connection drop |
+| API error mid-stream | `onChunk` sabotage hook throws mid-text -> same banner, classified as a generic provider failure (`ai_error:provider_failed`) |
+| Provider config/quota/auth errors | `lib/ai/errors.ts` classifies them server-side; the client only receives an `ai_error:<code>` token, mapped to banner copy |
 | Rate limit (429) | Route returns 429 before calling the model -> banner classifies as rate-limited, distinct copy |
 | Malformed tool output | `MetaTagsFindingsCard` guards `findings`/`score` shape -> amber notice, no crash |
 | Empty input | Form `submit()` no-ops on blank/whitespace — nothing sent, no error |

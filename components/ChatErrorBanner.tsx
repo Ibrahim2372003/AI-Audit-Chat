@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AI_ERROR_COPY, parseAiErrorCode } from '@/lib/ai/errors';
 
 /**
  * Retries the failed message only — useChat's regenerate() re-sends the
@@ -47,9 +48,16 @@ export function ChatErrorBanner({
 }
 
 function classify(error: Error): string {
+  // Provider failures arrive from the server as a fixed `ai_error:<code>`
+  // token (see lib/ai/errors.ts), never as the provider's raw message.
+  const code = parseAiErrorCode(error.message);
+  if (code) return AI_ERROR_COPY[code];
+
+  // Legacy keyword matching, kept for errors that don't carry a code (the
+  // route's own 429/400 JSON bodies, network failures before a response).
   const msg = error.message?.toLowerCase() ?? '';
   if (msg.includes('credit balance') || msg.includes('insufficient_quota')) {
-    return 'The audit service has no API credits available. Add credits to the Anthropic account, then retry.';
+    return 'The audit service has no API credits available. Check billing for the AI provider, then retry.';
   }
   if (msg.includes('429') || msg.includes('rate limit')) {
     return "You're sending messages faster than the audit service can keep up. Wait a moment and retry.";

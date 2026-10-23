@@ -138,7 +138,23 @@ export function isPublicIPv6(b: number[]): boolean {
   if (b[0] === 0x20 && b[1] === 0x01 && b[2] === 0x0d && b[3] === 0xb8) return false; // documentation
   if (b[0] === 0x3f && b[1] === 0xff && (b[2] & 0xf0) === 0x00) return false; // documentation (3fff::/20)
   if (b[0] === 0x20 && b[1] === 0x02) return isPublicIPv4(v4(2)); // 6to4: judged by embedded IPv4
+  // Benchmarking: 2001:2::/48
+  if (
+    b[0] === 0x20 &&
+    b[1] === 0x01 &&
+    b[2] === 0x00 &&
+    b[3] === 0x02 &&
+    b[4] === 0x00 &&
+    b[5] === 0x00
+  ) return false;
 
+  // Deprecated ORCHID: 2001:10::/28
+  if (
+    b[0] === 0x20 &&
+    b[1] === 0x01 &&
+    b[2] === 0x00 &&
+    (b[3] & 0xf0) === 0x10
+  ) return false;
   return true;
 }
 

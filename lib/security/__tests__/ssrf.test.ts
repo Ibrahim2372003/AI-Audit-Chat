@@ -65,6 +65,8 @@ describe('isPublicAddress: addresses that must be blocked', () => {
     '2001:db8::1',
     '2001::1',
     '3fff::1',
+    '2001:2::1',
+    '2001:10::1',
   ])('blocks %s', (address) => {
     expect(isPublicAddress(address)).toBe(false);
   });
@@ -102,6 +104,7 @@ describe('isPublicAddress: addresses that must be allowed', () => {
     '2001:4860:4860::8888',
     '::ffff:8.8.8.8',
     '64:ff9b::808:808',
+    '2001:20::1',
     '2002:0808:0808::1',
     '[2606:4700:4700::1111]',
   ])('allows %s', (address) => {

@@ -14,16 +14,20 @@ export default function EmptyState() {
         </div>
       </ShaderHero>
       <div className="pt-4">
-        <p className="text-sm text-[#8891A3] max-w-md leading-relaxed mb-6">
-          This can't fetch a URL on its own yet — paste the page's title tag,
-          meta description, headings, and body text (or the full HTML) and
-          it'll stream back what's working, what isn't, and what to fix first.
+        <p className="text-sm text-[#8891A3] max-w-md leading-relaxed mb-3">
+          Enter a public page URL and it fetches the page&rsquo;s title tag,
+          meta description, canonical link, robots, Open Graph and Twitter
+          card tags, scores them out of 100, then explains what&rsquo;s
+          working and what to fix first.
+        </p>
+        <p className="text-xs text-[#8891A3] max-w-md leading-relaxed mb-6">
+          Public web pages only: private or internal addresses, unusual
+          ports, and non-HTML files are rejected.
         </p>
         <div className="space-y-2 max-w-md">
           <p className="text-xs text-[#8891A3] font-medium">Try something like:</p>
           <p className="text-sm text-[#C4C9D4] border border-[#262B36] rounded-lg px-3 py-2 bg-[#12151C]">
-            "Title: Home | Acme Co. — Meta: (none) — H1: Welcome to our
-            website — audit this."
+            https://example.com
           </p>
         </div>
       </div>

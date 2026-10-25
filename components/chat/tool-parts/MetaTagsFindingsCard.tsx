@@ -63,8 +63,10 @@ export function MetaTagsFindingsCard({ result }: { result: Partial<FetchMetaTags
 
       {nothingFound && (
         <p className="border-t border-[#1D2230] px-3 py-2 text-xs text-[#8891A3]">
-          No SEO meta tags found on this page — that's a real result, not a
-          fetch problem. Worth checking if the page renders content client-side.
+          None of the checked tags were found in the HTML we fetched. That can
+          be a genuine gap, but a page that adds its head tags with JavaScript,
+          or serves bots a stripped-down page, can look empty here — so this
+          describes the fetched HTML, not proof the page has no SEO tags.
         </p>
       )}
     </div>

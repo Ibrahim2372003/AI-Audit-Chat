@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { safeFetchHtml } from '../../security/safe-fetch';
 import { findSiteFetchError } from '../errors';
+import { extractMetaTags, scoreTags } from './meta-extract';
 
 /**
  * fetchMetaTags
@@ -80,53 +81,4 @@ function hostOf(url: string): string {
   } catch {
     return 'invalid-url';
   }
-}
-
-// ---- extraction & scoring -------------------------------------------------
-
-function pick(html: string, re: RegExp) {
-  return html.match(re)?.[1]?.trim() ?? null;
-}
-
-function extractMetaTags(html: string) {
-  return {
-    title: pick(html, /<title[^>]*>([^<]*)<\/title>/i),
-    description: pick(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i),
-    canonical: pick(html, /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']*)["']/i),
-    robots: pick(html, /<meta[^>]+name=["']robots["'][^>]+content=["']([^"']*)["']/i),
-    ogTitle: pick(html, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)["']/i),
-    ogImage: pick(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']*)["']/i),
-    twitterCard: pick(html, /<meta[^>]+name=["']twitter:card["'][^>]+content=["']([^"']*)["']/i),
-  };
-}
-
-type Tags = ReturnType<typeof extractMetaTags>;
-
-function scoreTags(tags: Tags) {
-  const checks: { key: keyof Tags; label: string; weight: number }[] = [
-    { key: 'title', label: 'Title tag present', weight: 20 },
-    { key: 'description', label: 'Meta description present', weight: 20 },
-    { key: 'canonical', label: 'Canonical link present', weight: 15 },
-    { key: 'ogTitle', label: 'Open Graph title present', weight: 15 },
-    { key: 'ogImage', label: 'Open Graph image present', weight: 15 },
-    { key: 'twitterCard', label: 'Twitter card declared', weight: 15 },
-  ];
-
-  let score = 0;
-  const findings = checks.map((check) => {
-    const value = tags[check.key];
-    const pass = !!value;
-    if (pass) score += check.weight;
-    return { label: check.label, pass, value };
-  });
-
-  if (tags.title && (tags.title.length < 10 || tags.title.length > 60)) {
-    findings.push({
-      label: 'Title length within 10-60 chars',
-      pass: false,
-      value: `${tags.title.length} chars`,
-    });
-  }
-
-  return { score, findings };
 }

@@ -1,3 +1,5 @@
+import { SeoSuggestions } from './SeoSuggestions';
+
 type Finding = { label: string; pass: boolean; value: string | null };
 
 type FetchMetaTagsResult = {
@@ -69,6 +71,8 @@ export function MetaTagsFindingsCard({ result }: { result: Partial<FetchMetaTags
           describes the fetched HTML, not proof the page has no SEO tags.
         </p>
       )}
+
+      {typeof result.url === 'string' && <SeoSuggestions url={result.url} />}
     </div>
   );
 }

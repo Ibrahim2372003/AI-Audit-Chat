@@ -29,7 +29,11 @@ table), and the error/retry state.
    not a JSON dump.
 4. The model adds plain-language interpretation on top, not a repeat of
    the raw data.
-5. If you ask about a URL already audited this conversation, a
+5. Each audit includes an optional AI metadata-suggestions action. It safely
+   fetches the page again, uses extracted title, description, and audit
+   findings to generate validated suggestions, and offers copy buttons
+   without editing or publishing the website.
+6. If you ask about a URL already audited this conversation, a
    `confirmRescan` tool asks for explicit confirmation before re-running
    it — a deliberate user-interaction tool (no server `execute`; the
    client resolves it).
@@ -101,6 +105,7 @@ variables with placeholders only.
 app/
   page.jsx                    the live entry point — chat UI, inlined
   api/audit-chat/route.ts     POST handler: rate limit → validate → stream
+  api/seo-suggestions/route.ts rate-limited, safe-fetch-backed suggestion endpoint
   error.tsx, audit-chat/error.tsx   route-level error boundaries
 components/
   chat/AuditChat.tsx           a parallel copy of page.jsx's UI (see note)
@@ -111,6 +116,7 @@ components/
 lib/
   ai/model.ts                  provider/model selection (server-side env)
   ai/errors.ts                 provider-error classification + safe client codes
+  ai/seo-suggestions.ts        audit-backed structured suggestion generation
   ai/tools/                    fetchMetaTags, confirmRescan tool definitions
   security/                    rate-limit.ts, validate-input.ts, ssrf.ts (destination policy),
                                safe-fetch.ts (guarded fetch), site-fetch-error.ts (typed errors)
